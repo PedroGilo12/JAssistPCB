@@ -9,13 +9,16 @@ import javax.swing.border.TitledBorder;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableRowSorter;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class PartsPanel extends JPanel {
 
@@ -131,7 +134,14 @@ public class PartsPanel extends JPanel {
 
         @Override
         public void actionPerformed(ActionEvent e) {
-            return;
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setDialogTitle("Selecione o arquivo PNG para importar");
+            fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+            int userSelection = fileChooser.showOpenDialog(PartsPanel.this);
+            if (userSelection == JFileChooser.APPROVE_OPTION) {
+                File selectedFile = fileChooser.getSelectedFile();
+                MainWindow.getDisplayPanel().displayImage(selectedFile.getAbsolutePath());
+            }
         }
     };
 
@@ -159,9 +169,30 @@ public class PartsPanel extends JPanel {
                 throw new RuntimeException(e);
             }
 
+            MainWindow.getGroupsPanel().updateGroups(data);
             System.out.println("Arquivo selecionado: " + selectedFile.getAbsolutePath());
         }
 
         return null;
+    }
+
+    public void groupAndPrintPartsByComment() {
+        Map<String, List<PcbPart>> groupedParts = new HashMap<>();
+
+        for (PcbPart part : data) {
+            String comment = part.getComment();  // Supomos que existe o método getComment() em PcbPart
+            groupedParts.computeIfAbsent(comment, k -> new ArrayList<>()).add(part);
+        }
+
+        for (Map.Entry<String, List<PcbPart>> entry : groupedParts.entrySet()) {
+            String comment = entry.getKey();
+            List<PcbPart> parts = entry.getValue();
+
+            System.out.println("Grupo de peças com comment: " + comment);
+            for (PcbPart part : parts) {
+                System.out.println(part.getDesignator() + " - " + part.getComment());
+            }
+            System.out.println();
+        }
     }
 }

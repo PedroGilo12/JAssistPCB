@@ -6,12 +6,22 @@ import java.awt.*;
 public class MainWindow extends JFrame {
     private static MainWindow instance;
 
+    private static PcbDisplayPanel displayPanel;
+    private static GroupsPanel groupsPanel;
     private JSplitPane splitPane;
     private JTabbedPane tabs;
 
     private MainWindow() {
         super("JAssist PCB");
         initialize();
+    }
+
+    public static GroupsPanel getGroupsPanel() {
+        return groupsPanel;
+    }
+
+    public static PcbDisplayPanel getDisplayPanel() {
+        return displayPanel;
     }
 
     public static MainWindow getInstance() {
@@ -49,10 +59,17 @@ public class MainWindow extends JFrame {
         leftPanel.add(new JLabel("Painel Esquerdo"));
         splitPane.setLeftComponent(leftPanel);
 
-        PartsPanel rightPanel = new PartsPanel();
-        splitPane.setRightComponent(rightPanel);
+        JTabbedPane tabs = new JTabbedPane();
 
-        PcbDisplayPanel displayPanel = new PcbDisplayPanel();
+        PartsPanel rightPanel = new PartsPanel();
+        tabs.addTab("Parts", rightPanel);
+
+        groupsPanel = new GroupsPanel();
+        tabs.addTab("Groups", groupsPanel);
+
+        splitPane.setRightComponent(tabs);
+
+        displayPanel = new PcbDisplayPanel();
         splitPane.setLeftComponent(displayPanel);
 
         add(splitPane);
