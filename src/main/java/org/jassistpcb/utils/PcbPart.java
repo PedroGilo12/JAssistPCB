@@ -1,6 +1,9 @@
 package org.jassistpcb.utils;
 
-public class PcbPart {
+import java.io.Serializable;
+
+public class PcbPart implements Serializable{
+    private static final long serialVersionUID = 1L;
 
     private String designator;
     private String comment;

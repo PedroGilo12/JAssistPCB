@@ -1,5 +1,6 @@
 package org.jassistpcb.gui;
 
+import javax.imageio.ImageIO;
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
 import java.awt.*;
@@ -7,6 +8,9 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 
 public class PcbDisplayPanel extends JPanel {
 
@@ -21,6 +25,8 @@ public class PcbDisplayPanel extends JPanel {
     private int offsetY = 0;
     private int lastX = 0;
     private int lastY = 0;
+
+    private double rotationAngle = 0.0;
 
     public PcbDisplayPanel() {
         super(new BorderLayout());
@@ -39,6 +45,18 @@ public class PcbDisplayPanel extends JPanel {
 
         imageLabel = new JLabel();
         imageLabel.setHorizontalAlignment(SwingConstants.CENTER);
+
+        JButton rotateLeftButton = new JButton("Rotate Left");
+        JButton rotateRightButton = new JButton("Rotate Right");
+
+        rotateLeftButton.addActionListener(e -> rotateLeft());
+        rotateRightButton.addActionListener(e -> rotateRight());
+
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.add(rotateLeftButton);
+        buttonPanel.add(rotateRightButton);
+
+        add(buttonPanel, BorderLayout.NORTH);
 
         JScrollPane scrollPane = new JScrollPane(imageLabel);
         add(scrollPane, BorderLayout.CENTER);
@@ -72,8 +90,14 @@ public class PcbDisplayPanel extends JPanel {
                     int deltaX = e.getX() - lastX;
                     int deltaY = e.getY() - lastY;
 
-                    offsetX += deltaX;
-                    offsetY += deltaY;
+                    double cos = Math.cos(-rotationAngle);
+                    double sin = Math.sin(-rotationAngle);
+
+                    int transformedDeltaX = (int) (deltaX * cos - deltaY * sin);
+                    int transformedDeltaY = (int) (deltaX * sin + deltaY * cos);
+
+                    offsetX += transformedDeltaX;
+                    offsetY += transformedDeltaY;
 
                     lastX = e.getX();
                     lastY = e.getY();
@@ -152,14 +176,16 @@ public class PcbDisplayPanel extends JPanel {
         System.out.printf("Offset X = %d, Offset Y = %d\n", offsetX, offsetY);
     }
 
-    private void updateImage() {
+    public void updateImage() {
         if (originalImage != null) {
-
             int width = (int) (originalImage.getWidth() * zoomFactor);
             int height = (int) (originalImage.getHeight() * zoomFactor);
 
             displayedImage = new BufferedImage(1000, 1000, BufferedImage.TYPE_INT_ARGB);
             Graphics2D g2d = displayedImage.createGraphics();
+
+            g2d.rotate(rotationAngle, getWidth() / 2, getHeight() / 2);
+
             g2d.drawImage(originalImage, offsetX, offsetY, width, height, null);
 
             int centerX = getWidth() / 2;
@@ -172,5 +198,34 @@ public class PcbDisplayPanel extends JPanel {
             imageLabel.setIcon(new ImageIcon(displayedImage));
             imageLabel.repaint();
         }
+    }
+
+    public void rotateLeft() {
+        rotationAngle -= Math.toRadians(90);
+        updateImage();
+    }
+
+    public void rotateRight() {
+        rotationAngle += Math.toRadians(90);
+        updateImage();
+    }
+
+    public byte[] imageToBytes(BufferedImage image) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ImageIO.write(image, "png", baos);
+        return baos.toByteArray();
+    }
+
+    public BufferedImage bytesToImage(byte[] imageData) throws IOException {
+        return ImageIO.read(new ByteArrayInputStream(imageData));
+    }
+
+    public BufferedImage getOriginalImage() {
+        return originalImage;
+    }
+
+    public void setOriginalImage(BufferedImage image) {
+        this.originalImage = image;
+        updateImage();
     }
 }

@@ -9,13 +9,16 @@ import javax.swing.border.TitledBorder;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableRowSorter;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class PartsPanel extends JPanel {
 
@@ -131,7 +134,14 @@ public class PartsPanel extends JPanel {
 
         @Override
         public void actionPerformed(ActionEvent e) {
-            return;
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setDialogTitle("Selecione o arquivo PNG para importar");
+            fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+            int userSelection = fileChooser.showOpenDialog(PartsPanel.this);
+            if (userSelection == JFileChooser.APPROVE_OPTION) {
+                File selectedFile = fileChooser.getSelectedFile();
+                MainWindow.getDisplayPanel().displayImage(selectedFile.getAbsolutePath());
+            }
         }
     };
 
@@ -159,6 +169,7 @@ public class PartsPanel extends JPanel {
                 throw new RuntimeException(e);
             }
 
+            MainWindow.getGroupsPanel().updateGroups(data);
             System.out.println("Arquivo selecionado: " + selectedFile.getAbsolutePath());
         }
 
