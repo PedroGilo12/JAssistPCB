@@ -10,6 +10,8 @@ import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreeCellRenderer;
 import javax.swing.tree.TreePath;
 import java.awt.*;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
@@ -50,12 +52,79 @@ public class GroupsPanel extends JPanel {
         tree.setShowsRootHandles(true);
         tree.setRootVisible(false);
 
-        tree.addMouseListener(new MouseAdapter() {
-
+        tree.addKeyListener(new KeyAdapter() {
             @Override
-            public void mousePressed(MouseEvent e) {
+            public void keyPressed(KeyEvent e) {
+                super.keyPressed(e);
 
+                TreePath selectionPath = tree.getSelectionPath();
+                assert selectionPath != null;
+                DefaultMutableTreeNode node = (DefaultMutableTreeNode) selectionPath.getLastPathComponent();
+                Object userObject = node.getUserObject();
+
+                if(userObject instanceof String) {
+                    if (e.getKeyCode() == KeyEvent.VK_DOWN) {
+                        tree.expandPath(selectionPath);
+                        DefaultMutableTreeNode nextNode = getNextNode(node);
+                        if (nextNode != null) {
+                            CheckBoxNode nextCheckBoxNode = (CheckBoxNode) nextNode.getUserObject();
+                            double center_x = Double.parseDouble(nextCheckBoxNode.getPart().getCenterX());
+                            double center_y = Double.parseDouble(nextCheckBoxNode.getPart().getCenterY());
+
+                            MainWindow.getDisplayPanel().centerImageAt(center_x, center_y);
+                        }
+                    }
+
+                    if(e.getKeyCode() == KeyEvent.VK_UP) {
+                        tree.collapsePath(selectionPath);
+                    }
+                }
+
+                if (userObject instanceof CheckBoxNode checkBoxNode) {
+                    if (e.getKeyCode() == KeyEvent.VK_DOWN) {
+                        if (!checkBoxNode.isSelected()) {
+                            checkBoxNode.setSelected(true);
+                        }
+
+                        DefaultMutableTreeNode nextNode = getNextNode(node);
+                        if (nextNode != null) {
+                            CheckBoxNode nextCheckBoxNode = (CheckBoxNode) nextNode.getUserObject();
+                            double center_x = Double.parseDouble(nextCheckBoxNode.getPart().getCenterX());
+                            double center_y = Double.parseDouble(nextCheckBoxNode.getPart().getCenterY());
+
+                            MainWindow.getDisplayPanel().centerImageAt(center_x, center_y);
+                        }
+                    }
+
+                    if (e.getKeyCode() == KeyEvent.VK_UP) {
+                        if (checkBoxNode.isSelected()) {
+                            checkBoxNode.setSelected(false);
+                        }
+                    }
+
+                    tree.repaint();
+                }
             }
+
+            private DefaultMutableTreeNode getNextNode(DefaultMutableTreeNode currentNode) {
+                if (currentNode.getChildCount() > 0) {
+                    return (DefaultMutableTreeNode) currentNode.getChildAt(0);
+                }
+
+                DefaultMutableTreeNode parentNode = (DefaultMutableTreeNode) currentNode.getParent();
+                if (parentNode != null) {
+                    int index = parentNode.getIndex(currentNode);
+                    if (index < parentNode.getChildCount() - 1) {
+                        return (DefaultMutableTreeNode) parentNode.getChildAt(index + 1);
+                    }
+                }
+
+                return null;
+            }
+        });
+
+
+        tree.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
                 System.out.println("mouseClicked");
@@ -66,26 +135,14 @@ public class GroupsPanel extends JPanel {
                     DefaultMutableTreeNode node = (DefaultMutableTreeNode) path.getLastPathComponent();
                     Object userObject = node.getUserObject();
 
-                    if (userObject instanceof String) {
-
-                        DefaultMutableTreeNode parentNode = (DefaultMutableTreeNode) node.getParent();
-                        int index = parentNode.getIndex(node);
-
-
-                        if (index < parentNode.getChildCount() - 1) {
-                            DefaultMutableTreeNode nextNode = (DefaultMutableTreeNode) parentNode.getChildAt(index + 1);
-
-                            parentNode.remove(index);
-                            parentNode.insert(node, index + 1);
-                            parentNode.insert(nextNode, index);
-                            treeModel.reload();
-                            tree.repaint();
-                        }
-                    }
-
                     if (userObject instanceof CheckBoxNode) {
                         CheckBoxNode checkBoxNode = (CheckBoxNode) userObject;
                         checkBoxNode.setSelected(!checkBoxNode.isSelected());
+
+                        double center_x = Double.parseDouble(checkBoxNode.getPart().getCenterX());
+                        double center_y = Double.parseDouble(checkBoxNode.getPart().getCenterY());
+
+                        MainWindow.getDisplayPanel().centerImageAt(center_x, center_y);
                         tree.repaint();
                     }
                 }
@@ -105,16 +162,17 @@ public class GroupsPanel extends JPanel {
             groupedParts.computeIfAbsent(comment, k -> new ArrayList<>()).add(part);
         }
 
+
+        int group_number = 0;
         for (Map.Entry<String, List<PcbPart>> entry : groupedParts.entrySet()) {
             String comment = entry.getKey();
             List<PcbPart> parts = entry.getValue();
 
-            System.out.println("Grupo de peças com comment: " + comment);
-
-            DefaultMutableTreeNode group = new DefaultMutableTreeNode("Group: " + comment);
+            DefaultMutableTreeNode group = new DefaultMutableTreeNode("Group " + group_number + ": " +comment);
+            group_number++;
 
             for (PcbPart part : parts) {
-                group.add(new DefaultMutableTreeNode(new CheckBoxNode(part.getDesignator() + " - " + part.getComment(), false)));
+                group.add(new DefaultMutableTreeNode(new CheckBoxNode(part.getDesignator() + " - " + part.getComment(), false, part)));
                 System.out.println(part.getDesignator() + " - " + part.getComment());
             }
 
@@ -130,11 +188,17 @@ public class GroupsPanel extends JPanel {
 
 class CheckBoxNode {
     private String text;
+    private PcbPart part;
     private boolean selected;
 
-    public CheckBoxNode(String text, boolean selected) {
+    public CheckBoxNode(String text, boolean selected, PcbPart part) {
         this.text = text;
         this.selected = selected;
+        this.part = part;
+    }
+
+    public PcbPart getPart() {
+        return part;
     }
 
     public String getText() {
@@ -166,11 +230,11 @@ class CheckBoxNodeRenderer implements TreeCellRenderer {
 
         if (userObject instanceof CheckBoxNode) {
             CheckBoxNode checkBoxNode = (CheckBoxNode) userObject;
+
             checkBox.setText(checkBoxNode.getText());
             checkBox.setSelected(checkBoxNode.isSelected());
             return checkBox;
         } else {
-            // Retorna o renderizador padrão para outros tipos de nós
             return new DefaultTreeCellRenderer().getTreeCellRendererComponent(tree, value, selected, expanded, leaf, row, hasFocus);
         }
     }
