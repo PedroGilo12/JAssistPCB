@@ -131,7 +131,14 @@ public class PartsPanel extends JPanel {
 
         @Override
         public void actionPerformed(ActionEvent e) {
-            return;
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setDialogTitle("Selecione o arquivo PNG para importar");
+            fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+            int userSelection = fileChooser.showOpenDialog(PartsPanel.this);
+            if (userSelection == JFileChooser.APPROVE_OPTION) {
+                File selectedFile = fileChooser.getSelectedFile();
+                MainWindow.getDisplayPanel().displayImage(selectedFile.getAbsolutePath());
+            }
         }
     };
 
@@ -159,6 +166,7 @@ public class PartsPanel extends JPanel {
                 throw new RuntimeException(e);
             }
 
+            MainWindow.getGroupsPanel().updateSlots(data);
             System.out.println("Arquivo selecionado: " + selectedFile.getAbsolutePath());
         }
 
