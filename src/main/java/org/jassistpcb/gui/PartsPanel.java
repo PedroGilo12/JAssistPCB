@@ -143,16 +143,12 @@ public class PartsPanel extends JPanel {
     };
 
     private List<PcbPart> importPackages() {
-        JFileChooser fileChooser = new JFileChooser();
-        fileChooser.setDialogTitle("Selecione o arquivo CSV para importar");
-        fileChooser.setMultiSelectionEnabled(true);
-        fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+        PnpConfigDialog dialog = new PnpConfigDialog((JFrame) MainWindow.getInstance().getParent());
+        dialog.setVisible(true);
 
-        int userSelection = fileChooser.showOpenDialog(this);
+        File selectedFile = dialog.getSelectedFile();
 
-        if (userSelection == JFileChooser.APPROVE_OPTION) {
-            File selectedFile = fileChooser.getSelectedFile();
-
+        if (selectedFile != null) {
             try {
                 List<PcbPart> parts = CsvImporter.processCsv(selectedFile.getPath(), 15);
 

@@ -8,6 +8,8 @@ import javax.swing.tree.DefaultMutableTreeNode;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
 import java.io.*;
 
@@ -46,7 +48,7 @@ public class MainWindow extends JFrame {
     }
 
     private void initialize() throws NoSuchFieldException {
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
 
         WorkManager workManager = new WorkManager();
 
@@ -94,6 +96,35 @@ public class MainWindow extends JFrame {
         workManager.addMonitoring(displayPanel, "rotationAngle");
         workManager.addMonitoring(displayPanel, "originalImage");
         workManager.addMonitoring(slotPanel, "newPartHasMounted");
+
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                if(workManager.isChange()) {
+                    int option = JOptionPane.showConfirmDialog(MainWindow.this,
+                            "Deseja salvar as alterações antes de fechar?",
+                            "Fechar Janela",
+                            JOptionPane.YES_NO_CANCEL_OPTION,
+                            JOptionPane.QUESTION_MESSAGE
+                    );
+
+                    if (option == JOptionPane.YES_OPTION) {
+                        MainWindow.getInstance().saveWorkAction.actionPerformed(null);
+                        dispose();
+                        System.exit(0);
+                    } else if (option == JOptionPane.NO_OPTION) {
+                        dispose();
+                        System.exit(0);
+                    } else if (option == JOptionPane.CANCEL_OPTION) {
+                        System.out.println("Fechamento cancelado.");
+                    }
+                } else {
+                    dispose();
+                    System.exit(0);
+                }
+            }
+        });
+
 
         splitPane.setLeftComponent(displayPanel);
 

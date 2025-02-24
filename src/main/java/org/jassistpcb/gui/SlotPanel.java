@@ -26,6 +26,7 @@ public class SlotPanel extends JPanel {
     private JLabel currentSlotLabel;
     private JTree tree;
     private boolean newPartHasMounted = false;
+    private JProgressBar workProgressBar;
 
     public void setNewPartHasMounted(boolean newPartHasMounted) {
         this.newPartHasMounted = newPartHasMounted;
@@ -44,6 +45,7 @@ public class SlotPanel extends JPanel {
             this.root = newRoot;
             this.treeModel.setRoot(root);
             treeModel.reload();
+            updateWorkProgressBar();
             revalidate();
             repaint();
         }
@@ -63,6 +65,28 @@ public class SlotPanel extends JPanel {
         JToolBar toolBar = new JToolBar();
         toolBar.setFloatable(false);
         add(toolBar, BorderLayout.NORTH);
+
+        JButton resetMountedParts = new JButton("Reset Mounted Parts");
+
+        resetMountedParts.addActionListener(e -> {
+            for (int i = 0; i < root.getChildCount(); i++) {
+                DefaultMutableTreeNode slotNode = (DefaultMutableTreeNode) root.getChildAt(i);
+                for (int j = 0; j < slotNode.getChildCount(); j++) {
+                    DefaultMutableTreeNode partNode = (DefaultMutableTreeNode) slotNode.getChildAt(j);
+                    Object userObject = partNode.getUserObject();
+
+                    if (userObject instanceof CheckBoxNode) {
+                        CheckBoxNode checkBoxNode = (CheckBoxNode) userObject;
+                        checkBoxNode.setMounted(false);
+                    }
+                }
+            }
+
+            updateWorkProgressBar();
+
+            tree.repaint();
+        });
+        toolBar.add(resetMountedParts);
 
         JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
         splitPane.setDividerLocation(0.5);
@@ -134,6 +158,8 @@ public class SlotPanel extends JPanel {
                         } else {
                             tree.collapsePath(selectionPath.getParentPath());
                         }
+
+                        updateWorkProgressBar();
                     }
 
                     tree.setSelectionRow(tree.getLeadSelectionRow() + 1);
@@ -174,7 +200,15 @@ public class SlotPanel extends JPanel {
                     Object userObject = node.getUserObject();
 
                     if (userObject instanceof CheckBoxNode) {
+
                         CheckBoxNode checkBoxNode = (CheckBoxNode) userObject;
+                        if (SwingUtilities.isRightMouseButton(e)) {
+                            System.out.println("Clique direito detectado!");
+                            showContextMenu(e.getX(), e.getY(), checkBoxNode);
+                            tree.repaint();
+                            return;
+                        }
+
                         checkBoxNode.setMounted(!checkBoxNode.isMounted());
                         setNewPartHasMounted(true);
 
@@ -183,7 +217,69 @@ public class SlotPanel extends JPanel {
 
                         MainWindow.getDisplayPanel().centerImageAt(center_x, center_y);
                         tree.repaint();
+
+                        updateWorkProgressBar();
                     }
+                }
+            }
+
+            private void showContextMenu(int x, int y, CheckBoxNode checkBoxNode) {
+                JPopupMenu contextMenu = new JPopupMenu();
+
+                JPanel labelPanel = new JPanel(new BorderLayout());
+                JLabel label = new JLabel("Adicione um comentário");
+                label.setHorizontalAlignment(SwingConstants.LEFT);
+                labelPanel.add(label, BorderLayout.WEST);
+                contextMenu.add(labelPanel);
+
+                JTextArea textArea = new JTextArea();
+                textArea.addKeyListener(new KeyAdapter() {
+                   @Override
+                   public void keyPressed(KeyEvent e) {
+                       super.keyPressed(e);
+                       int key = e.getKeyCode();
+
+                       if (key == KeyEvent.VK_ENTER) {
+                           checkBoxNode.setComment(textArea.getText());
+                           contextMenu.setVisible(false);
+                       }
+                   }
+                });
+                textArea.setEditable(true);
+                textArea.setPreferredSize(new Dimension(400, 300));
+                textArea.setMaximumSize(textArea.getPreferredSize());
+                textArea.setMinimumSize(textArea.getPreferredSize());
+                textArea.setLineWrap(true);
+                textArea.setWrapStyleWord(true);
+                textArea.setText(checkBoxNode.getComment());
+
+                JMenuItem save = new JMenuItem("Salvar comentário");
+                save.addActionListener(e -> {
+                    checkBoxNode.setComment(textArea.getText());
+                });
+
+                contextMenu.add(new JScrollPane(textArea));
+                contextMenu.add(save);
+
+                contextMenu.show(tree, x, y);
+            }
+        });
+
+        tree.addMouseMotionListener(new MouseAdapter() {
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                TreePath path = tree.getPathForLocation(e.getX(), e.getY());
+                if (path != null) {
+                    DefaultMutableTreeNode node = (DefaultMutableTreeNode) path.getLastPathComponent();
+                    Object userObject = node.getUserObject();
+                    if (userObject instanceof CheckBoxNode) {
+                        CheckBoxNode checkBoxNode = (CheckBoxNode) userObject;
+                        tree.setToolTipText(checkBoxNode.getComment());
+                    } else {
+                        tree.setToolTipText(null);
+                    }
+                } else {
+                    tree.setToolTipText(null);
                 }
             }
         });
@@ -197,6 +293,13 @@ public class SlotPanel extends JPanel {
         currentSlotLabel = new JLabel(currentSlot, SwingConstants.CENTER);
         currentSlotLabel.setFont(new Font("Arial", Font.PLAIN, 100));
 
+        workProgressBar = new JProgressBar(0, 100);
+        workProgressBar.setStringPainted(true);
+        workProgressBar.setFont(new Font("Arial", Font.PLAIN, 20));
+        workProgressBar.setForeground(new Color(0, 200, 0));
+        workProgressBar.setString("0/0");
+
+        currentSlotPanel.add(workProgressBar, BorderLayout.NORTH);
         currentSlotPanel.add(currentSlotLabel, BorderLayout.CENTER);
 
         splitPane.setBottomComponent(currentSlotPanel);
@@ -242,6 +345,39 @@ public class SlotPanel extends JPanel {
         revalidate();
         repaint();
     }
+
+    private void updateWorkProgressBar() {
+        int totalParts = 0;
+        int mountedParts = 0;
+
+        for (int i = 0; i < root.getChildCount(); i++) {
+            DefaultMutableTreeNode slotNode = (DefaultMutableTreeNode) root.getChildAt(i);
+            totalParts += slotNode.getChildCount();
+
+            for (int j = 0; j < slotNode.getChildCount(); j++) {
+                DefaultMutableTreeNode partNode = (DefaultMutableTreeNode) slotNode.getChildAt(j);
+                CheckBoxNode checkBoxNode = (CheckBoxNode) partNode.getUserObject();
+                if (checkBoxNode.isMounted()) {
+                    mountedParts++;
+                }
+            }
+        }
+
+        if (totalParts > 0) {
+            int progress = (int) ((double) mountedParts / totalParts * 100);
+            workProgressBar.setValue(progress);
+            workProgressBar.setString(mountedParts + "/" + totalParts);
+        } else {
+            workProgressBar.setValue(0);
+            workProgressBar.setString("0/0");
+        }
+
+        if (mountedParts == totalParts) {
+            workProgressBar.setForeground(new Color(0, 200, 0));
+        } else {
+            workProgressBar.setForeground(Color.ORANGE);
+        }
+    }
 }
 
 class CheckBoxNode implements Serializable {
@@ -249,11 +385,19 @@ class CheckBoxNode implements Serializable {
     private String text;
     private PcbPart part;
     private boolean mounted;
+    private String Comment = "";
 
     public CheckBoxNode(String text, boolean selected, PcbPart part) {
         this.text = text;
         this.mounted = selected;
         this.part = part;
+    }
+
+    public String getComment() {
+        return Comment;
+    }
+    public void setComment(String comment) {
+        Comment = comment;
     }
 
     public PcbPart getPart() {
@@ -339,6 +483,12 @@ class CheckBoxNodeRenderer implements TreeCellRenderer {
         } else {
             if (userObject instanceof CheckBoxNode) {
                 CheckBoxNode checkBoxNode = (CheckBoxNode) userObject;
+                if(!checkBoxNode.getComment().isEmpty()) {
+                    checkBox.setBackground(Color.ORANGE);
+                } else {
+                    checkBox.setBackground(defaultRenderer.getBackgroundNonSelectionColor());
+                }
+                checkBox.setToolTipText(checkBoxNode.getComment());
                 checkBox.setText(checkBoxNode.getText());
                 checkBox.setSelected(checkBoxNode.isMounted());
                 return checkBox;
